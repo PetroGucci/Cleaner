@@ -1,29 +1,37 @@
 import discord
-from discord.ext import commands, tasks
-from dotenv import load_dotenv
 import os
+from discord.ext import tasks
+from discord import app_commands
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-# Cargar múltiples IDs de canales separados por comas desde el .env
-
+# Cargar IDs de canales desde el .env (múltiples separados por comas)
 channel_ids = os.getenv('DISCORD_CHANNEL_IDS').split(',')
 channel_ids = [int(ch_id.strip()) for ch_id in channel_ids]
 
-# Configuración: define la hora objetivo para el borrado automático (17:15 PM)
+# Configuración de la hora programada
 TARGET_HOUR = 17
 TARGET_MINUTE = 15
 
-# Configurar los intents necesarios
+# Configurar intents necesarios
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True  # Asegúrate de activar este intent en el portal de Discord
 
-# Crear una instancia del bot
-bot = commands.Bot(command_prefix='!', intents=intents)
+class CleanerBot(discord.Client):
+    def __init__(self):
+        super().__init__(intents=intents)
+        self.tree = app_commands.CommandTree(self)
+
+    async def setup_hook(self):
+        await self.tree.sync()  # Sincronizar comandos de barra con Discord
+        print("Slash commands sincronizados.")
+
+bot = CleanerBot()
 
 def time_until_target():
     """Calcula el tiempo en segundos hasta la próxima ejecución a la hora objetivo."""
@@ -35,44 +43,66 @@ def time_until_target():
 
 @bot.event
 async def on_ready():
+    await bot.tree.sync()  # Sincronizar comandos de barra con Discord
     print(f'Bot conectado como {bot.user}')
     seconds = time_until_target()
-    print(f"Esperando {seconds/3600:.2f} horas para el borrado automático")
-    # Espera hasta la próxima hora objetivo y luego inicia la tarea diaria
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    print(f"Esperando {hours}:{minutes:02d} horas para el borrado automático")
     await discord.utils.sleep_until(datetime.now() + timedelta(seconds=seconds))
     daily_clear.start()
 
 @tasks.loop(hours=24)
 async def daily_clear():
+    """Borrado automático diario en los canales configurados."""
     for channel_id in channel_ids:
         channel = bot.get_channel(channel_id)
         if channel:
             try:
-                # Borra hasta 10000 mensajes en el canal; ajusta el límite según lo necesites
-                deleted = await channel.purge(limit=10000)
-                print(f'Borrado automático completado en {channel.name}: {len(deleted)} mensajes eliminados.')
+                def not_pinned(m):
+                    return not m.pinned
+
+                deleted = await channel.purge(limit=10000, check=not_pinned)
+                if deleted:
+                    print(f'Borrado automático en {channel.name}: {len(deleted)} mensajes eliminados.')
+                else:
+                    print(f'Borrado automático en {channel.name}: No había mensajes para borrar.')
             except Exception as e:
                 print(f"Error en borrado automático en el canal {channel_id}: {e}")
         else:
             print(f"Canal con ID {channel_id} no encontrado.")
 
-@bot.command(name='clear')
-@commands.has_permissions(manage_messages=True)
-async def clear(ctx):
-    def not_pinned(m):
-        return not m.pinned
+# Restringir el comando a usuarios con permiso "Manage Messages" o administradores
+@bot.tree.command(name="clear", description="Borra los últimos mensajes en este canal")
+@app_commands.checks.has_permissions(manage_messages=True)
+async def clear(interaction: discord.Interaction):
+    """Borra manualmente hasta 10000 mensajes recientes en el canal."""
+    try:
+        # Defer la respuesta para evitar que expire la interacción
+        await interaction.response.defer(ephemeral=True)
+        
+        def not_pinned(m):
+            return not m.pinned
 
-    # Borrar hasta 10000 mensajes recientes
-    deleted = await ctx.channel.purge(limit=10000, check=not_pinned)
-    print(f"Mensajes borrados: {len(deleted)}")
-    confirm_msg = await ctx.send(f'¡Canal limpiado! Mensajes borrados: {len(deleted)}')
-    await confirm_msg.delete(delay=5)
+        deleted = await interaction.channel.purge(limit=10000, check=not_pinned)
+        await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send("⚠️ Error al intentar limpiar el canal.", ephemeral=True)
+        print(f"Error en /clear: {e}")
 
+# Manejador de errores para /clear
 @clear.error
-async def clear_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("¡Hey! No tienes permisos para borrar mensajes.") # Mensaje de error si no tiene permisos de 'Manage Messages'
+async def clear_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ No tienes permisos para usar este comando.",
+            ephemeral=True
+        )
     else:
-        await ctx.send("Ocurrió un error inesperado al intentar limpiar el canal.")
+        await interaction.response.send_message(
+            "Ocurrió un error inesperado.",
+            ephemeral=True
+        )
+        print(error)
 
 bot.run(TOKEN)
