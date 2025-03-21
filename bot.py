@@ -78,14 +78,17 @@ async def daily_clear():
 async def clear(interaction: discord.Interaction):
     """Borra manualmente hasta 10000 mensajes recientes en el canal."""
     try:
-        # Defer la respuesta para evitar que expire la interacción
+        # Defer para evitar que la interacción expire
         await interaction.response.defer(ephemeral=True)
         
         def not_pinned(m):
             return not m.pinned
 
         deleted = await interaction.channel.purge(limit=10000, check=not_pinned)
+        
+        # Usamos followup para enviar el mensaje final
         await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
+
     except Exception as e:
         await interaction.followup.send("⚠️ Error al intentar limpiar el canal.", ephemeral=True)
         print(f"Error en /clear: {e}")
