@@ -4,6 +4,7 @@ from discord.ext import tasks
 from discord import app_commands
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo # Para manejar zonas horarias
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -13,7 +14,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 channel_ids = os.getenv('DISCORD_CHANNEL_IDS').split(',')
 channel_ids = [int(ch_id.strip()) for ch_id in channel_ids]
 
-# Configuración de la hora programada
+# Configuración de la hora programada (en horario de California)
 TARGET_HOUR = 17
 TARGET_MINUTE = 15
 
@@ -34,8 +35,9 @@ class CleanerBot(discord.Client):
 bot = CleanerBot()
 
 def time_until_target():
-    """Calcula el tiempo en segundos hasta la próxima ejecución a la hora objetivo."""
-    now = datetime.now()
+    """Calcula el tiempo en segundos hasta la próxima ejecución a la hora objetivo, usando la zona horaria de California."""
+    california_tz = ZoneInfo("America/Los_Angeles")
+    now = datetime.now(california_tz)
     target = now.replace(hour=TARGET_HOUR, minute=TARGET_MINUTE, second=0, microsecond=0)
     if target < now:
         target += timedelta(days=1)
@@ -43,12 +45,23 @@ def time_until_target():
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()  # Sincronizar comandos de barra con Discord
-    print(f'Bot conectado como {bot.user}')
+    # Sincronizar comandos de barra con Discord
+    await bot.tree.sync()
+    
+    # Obtener la hora actual en California
+    california_tz = ZoneInfo("America/Los_Angeles")
+    now_ca = datetime.now(california_tz)
+    
     seconds = time_until_target()
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
-    print(f"Esperando {hours}:{minutes:02d} horas para el borrado automático")
+    
+    # Imprime en la consola con el formato deseado
+    print(f'Bot conectado como {bot.user}')
+    print(f"Actualmente son las {now_ca.strftime('%H:%M')} (California)")
+    print(f"Faltan {hours}:{minutes:02d} horas para el borrado automático")
+    
+    # Esperar hasta el próximo horario objetivo
     await discord.utils.sleep_until(datetime.now() + timedelta(seconds=seconds))
     daily_clear.start()
 
@@ -72,7 +85,7 @@ async def daily_clear():
         else:
             print(f"Canal con ID {channel_id} no encontrado.")
 
-# Restringir el comando a usuarios con permiso "Manage Messages" o administradores
+# Comando /clear restringido a usuarios con "Manage Messages"
 @bot.tree.command(name="clear", description="Borra los últimos mensajes en este canal")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def clear(interaction: discord.Interaction):
@@ -85,12 +98,11 @@ async def clear(interaction: discord.Interaction):
             return not m.pinned
 
         deleted = await interaction.channel.purge(limit=10000, check=not_pinned)
-
+        deleted_count = len(deleted)
+        
         server_name = interaction.guild.name if interaction.guild else "DM"
         channel_name = interaction.channel.name
-        deleted_count = len(deleted)
 
-        # Imprimir en la terminal
         if deleted_count == 1:
             await interaction.followup.send(f'✅ {len(deleted)} mensaje eliminado.', ephemeral=True)
             print(f"Se eliminó {len(deleted)} mensaje en el canal '{channel_name}' del servidor '{server_name}'.")    
@@ -100,7 +112,6 @@ async def clear(interaction: discord.Interaction):
         else:
             await interaction.followup.send('⚠️ No hay mensajes para borrar.', ephemeral=True)
             print(f"No hay mensajes que borrar en el canal '{channel_name}' del servidor '{server_name}'.")
-
     except Exception as e:
         await interaction.followup.send("⚠️ Error al intentar limpiar el canal.", ephemeral=True)
         print(f"Error en /clear: {e}")
