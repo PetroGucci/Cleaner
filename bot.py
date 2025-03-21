@@ -85,13 +85,21 @@ async def clear(interaction: discord.Interaction):
             return not m.pinned
 
         deleted = await interaction.channel.purge(limit=10000, check=not_pinned)
-        
-        # Usamos followup para enviar el mensaje final
-        await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
+
+        server_name = interaction.guild.name if interaction.guild else "DM"
+        channel_name = interaction.channel.name
+
+        # Imprimir en la terminal
+        if deleted:
+            await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
+            print(f"Se eliminaron {len(deleted)} mensajes en el canal '{channel_name}' del servidor '{server_name}'.")
+        else:
+            await interaction.followup.send('⚠️ No hay mensajes para borrar.', ephemeral=True)
+            print(f"No hay mensajes que borrar en el canal '{channel_name}' del servidor '{server_name}'.")
 
     except Exception as e:
         await interaction.followup.send("⚠️ Error al intentar limpiar el canal.", ephemeral=True)
-        print(f"Error en /clear: {e}")
+        print(f"❌ Error en /clear: {e}")
 
 # Manejador de errores para /clear
 @clear.error
