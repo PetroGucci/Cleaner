@@ -88,9 +88,13 @@ async def clear(interaction: discord.Interaction):
 
         server_name = interaction.guild.name if interaction.guild else "DM"
         channel_name = interaction.channel.name
+        deleted_count = len(deleted)
 
         # Imprimir en la terminal
-        if deleted:
+        if deleted_count == 1:
+            await interaction.followup.send(f'✅ {len(deleted)} mensaje eliminado.', ephemeral=True)
+            print(f"Se eliminó {len(deleted)} mensaje en el canal '{channel_name}' del servidor '{server_name}'.")    
+        elif deleted_count > 1:
             await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
             print(f"Se eliminaron {len(deleted)} mensajes en el canal '{channel_name}' del servidor '{server_name}'.")
         else:
@@ -99,7 +103,7 @@ async def clear(interaction: discord.Interaction):
 
     except Exception as e:
         await interaction.followup.send("⚠️ Error al intentar limpiar el canal.", ephemeral=True)
-        print(f"❌ Error en /clear: {e}")
+        print(f"Error en /clear: {e}")
 
 # Manejador de errores para /clear
 @clear.error
