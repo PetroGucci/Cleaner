@@ -121,14 +121,10 @@ async def clear(interaction: discord.Interaction):
 async def clear_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message(
-            "❌ No tienes permisos para usar este comando.",
-            ephemeral=True
-        )
+            "❌ No tienes permisos para usar este comando.",ephemeral=True)
     else:
         await interaction.response.send_message(
-            "Ocurrió un error inesperado.",
-            ephemeral=True
-        )
-        print(error)
+            "Ocurrió un error inesperado.",ephemeral=True)
+    print(error)
 
 bot.run(TOKEN)
