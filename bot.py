@@ -4,7 +4,7 @@ from discord.ext import tasks
 from discord import app_commands
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo # Para manejar zonas horarias
+from zoneinfo import ZoneInfo  # Para manejar zonas horarias
 
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
@@ -76,10 +76,16 @@ async def daily_clear():
                     return not m.pinned
 
                 deleted = await channel.purge(limit=10000, check=not_pinned)
-                if deleted:
-                    print(f'Borrado automático en {channel.name}: {len(deleted)} mensajes eliminados.')
+                deleted_count = len(deleted)
+                # Obtener el nombre del servidor del canal
+                server_name = channel.guild.name if channel.guild else "DM"
+                
+                if deleted_count == 1:
+                    print(f"Borrado automático en '{channel.name}' del servidor '{server_name}': {deleted_count} mensaje eliminado.")
+                elif deleted_count > 1:
+                    print(f"Borrado automático en '{channel.name}' del servidor '{server_name}': {deleted_count} mensajes eliminados.")
                 else:
-                    print(f'Borrado automático en {channel.name}: No había mensajes para borrar.')
+                    print(f"Borrado automático en '{channel.name}' del servidor '{server_name}': No había mensajes para borrar.")
             except Exception as e:
                 print(f"Error en borrado automático en el canal {channel_id}: {e}")
         else:
@@ -104,11 +110,11 @@ async def clear(interaction: discord.Interaction):
         channel_name = interaction.channel.name
 
         if deleted_count == 1:
-            await interaction.followup.send(f'✅ {len(deleted)} mensaje eliminado.', ephemeral=True)
-            print(f"Se eliminó {len(deleted)} mensaje en el canal '{channel_name}' del servidor '{server_name}'.")    
+            await interaction.followup.send(f'✅ {deleted_count} mensaje eliminado.', ephemeral=True)
+            print(f"Se eliminó {deleted_count} mensaje en el canal '{channel_name}' del servidor '{server_name}'.")    
         elif deleted_count > 1:
-            await interaction.followup.send(f'✅ {len(deleted)} mensajes eliminados.', ephemeral=True)
-            print(f"Se eliminaron {len(deleted)} mensajes en el canal '{channel_name}' del servidor '{server_name}'.")
+            await interaction.followup.send(f'✅ {deleted_count} mensajes eliminados.', ephemeral=True)
+            print(f"Se eliminaron {deleted_count} mensajes en el canal '{channel_name}' del servidor '{server_name}'.")
         else:
             await interaction.followup.send('⚠️ No hay mensajes para borrar.', ephemeral=True)
             print(f"No hay mensajes que borrar en el canal '{channel_name}' del servidor '{server_name}'.")
@@ -120,11 +126,9 @@ async def clear(interaction: discord.Interaction):
 @clear.error
 async def clear_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
-        await interaction.response.send_message(
-            "❌ No tienes permisos para usar este comando.",ephemeral=True)
+        await interaction.response.send_message("❌ No tienes permisos para usar este comando.", ephemeral=True)
     else:
-        await interaction.response.send_message(
-            "Ocurrió un error inesperado.",ephemeral=True)
+        await interaction.response.send_message("Ocurrió un error inesperado.", ephemeral=True)
     print(error)
 
 bot.run(TOKEN)
