@@ -1,5 +1,6 @@
 import discord
 import os
+import webserver
 from discord.ext import tasks
 from discord import app_commands
 from dotenv import load_dotenv
@@ -131,4 +132,5 @@ async def clear_error(interaction: discord.Interaction, error):
         await interaction.response.send_message("Ocurrió un error inesperado.", ephemeral=True)
     print(error)
 
+webserver.keep_alive()
 bot.run(TOKEN)
