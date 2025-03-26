@@ -61,6 +61,10 @@ async def on_ready():
     print(f'Bot conectado como {bot.user}')
     print(f"Actualmente son las {now_ca.strftime('%H:%M')} (California)")
     print(f"Faltan {hours}:{minutes:02d} horas para el borrado automático")
+
+    # Estado del bot
+    activity = discord.Game(name="Eliminando evidencias.")
+    await bot.change_presence(activity=activity)
     
     # Esperar hasta el próximo horario objetivo
     await discord.utils.sleep_until(datetime.now() + timedelta(seconds=seconds))
