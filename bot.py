@@ -66,9 +66,10 @@ async def on_ready():
     activity = discord.Game(name="Eliminando evidencias.")
     await bot.change_presence(activity=activity)
     
-    # Esperar hasta el próximo horario objetivo
-    await discord.utils.sleep_until(datetime.now() + timedelta(seconds=seconds))
-    daily_clear.start()
+    # Verificar si la tarea ya está corriendo antes de iniciarla
+    if not daily_clear.is_running():
+        await discord.utils.sleep_until(datetime.now() + timedelta(seconds=seconds))
+        daily_clear.start()
 
 @tasks.loop(hours=24)
 async def daily_clear():
