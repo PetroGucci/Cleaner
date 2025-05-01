@@ -59,7 +59,11 @@ async def on_ready():
     # Imprime en la consola con el formato deseado
     print(f'Bot conectado como {bot.user}')
     print(f"Actualmente son las {now_ca.strftime('%H:%M')} (California)")
-    print(f"Faltan {hours}:{minutes:02d} horas para el borrado automático")
+
+    if hours == 0:
+        print(f"Faltan {minutes:02d} minutos para el borrado automático")
+    else:
+        print(f"Faltan {hours}:{minutes:02d} horas para el borrado automático")
 
     # Estado del bot
     activity = discord.Game(name="Eliminando evidencias.")
