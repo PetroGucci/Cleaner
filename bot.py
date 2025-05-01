@@ -1,6 +1,7 @@
 import discord
 import os
 import webserver
+import asyncio
 from discord.ext import tasks
 from discord import app_commands
 from dotenv import load_dotenv
@@ -10,14 +11,12 @@ from zoneinfo import ZoneInfo  # Para manejar zonas horarias
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+TARGET_HOUR = int(os.getenv('HOUR', 0))  
+TARGET_MINUTE = int(os.getenv('MINUTE', 0))  
 
 # Cargar IDs de canales desde el .env (múltiples separados por comas)
 channel_ids = os.getenv('DISCORD_CHANNEL_IDS').split(',')
 channel_ids = [int(ch_id.strip()) for ch_id in channel_ids]
-
-# Configuración de la hora programada (en horario de California)
-TARGET_HOUR = 17
-TARGET_MINUTE = 15
 
 # Configurar intents necesarios
 intents = discord.Intents.default()
@@ -95,6 +94,9 @@ async def daily_clear():
                 print(f"Error en borrado automático en el canal {channel_id}: {e}")
         else:
             print(f"Canal con ID {channel_id} no encontrado.")
+        
+        # Agregar un retraso para evitar rate limits
+        await asyncio.sleep(2)  # Ajusta el tiempo según sea necesario
 
 # Comando /clear restringido a usuarios con "Manage Messages"
 @bot.tree.command(name="clear", description="Borra los últimos mensajes en este canal")
